@@ -1,0 +1,9 @@
+{
+  "model": "models/policy.pt",
+  "duration_s": 120.0,
+  "steps": 576,
+  "distance_m": 18.95,
+  "min_clearance_m": 0.15,
+  "collision_events": 0,
+  "agreement_with_teacher": 0.87
+}

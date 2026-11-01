@@ -1,0 +1,34 @@
+{
+  "data": [
+    "data/teacher.npz",
+    "data/dagger1.npz",
+    "data/teacher_v2.npz"
+  ],
+  "relabel": true,
+  "sectors": 72,
+  "samples": 3206,
+  "val_acc": 0.8829953074455261,
+  "train_acc": 0.9980506896972656,
+  "confusion_matrix": [
+    [
+      409,
+      15,
+      5
+    ],
+    [
+      26,
+      78,
+      4
+    ],
+    [
+      21,
+      4,
+      79
+    ]
+  ],
+  "actions": [
+    "FORWARD",
+    "LEFT",
+    "RIGHT"
+  ]
+}

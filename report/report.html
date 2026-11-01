@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>PAI最終課題 説明資料</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  body { font-family: "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif; font-size: 10.5pt; line-height: 1.6; color: #111; }
+  h1 { font-size: 17pt; margin: 0 0 4px; }
+  .sub { color: #52514e; margin: 0 0 14px; }
+  h2 { font-size: 12.5pt; border-bottom: 2px solid #2a78d6; padding-bottom: 2px; margin: 18px 0 8px; }
+  h3 { font-size: 11pt; margin: 12px 0 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 6px 0; }
+  th, td { border: 1px solid #c9c8c3; padding: 3px 6px; text-align: left; vertical-align: top; }
+  th { background: #f0efec; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  pre { background: #f5f5f3; border: 1px solid #e4e3df; padding: 8px; font-size: 8.8pt; line-height: 1.35; white-space: pre-wrap; }
+  code { font-family: Consolas, monospace; font-size: 9pt; }
+  img { max-width: 100%; }
+  .note { color: #52514e; font-size: 9pt; }
+  .box { border: 1px solid #c9c8c3; border-left: 4px solid #2a78d6; padding: 6px 10px; background: #fafaf8; }
+  .pb { page-break-before: always; }
+  ul { margin: 4px 0; padding-left: 1.4em; }
+</style>
+</head>
+<body>
+
+<h1>LiDAR × 模倣学習による TurtleBot3 自律走行</h1>
+<p class="sub">Physical AI 応用1講座 最終課題 説明資料 ／ ROS 2 Humble・Gazebo Classic 11・TurtleBot3 Burger・PyTorch<br>
+コード: https://github.com/2life2021/tb3-ai-navigator ／ 動画: YouTube（omnicampusで提出）</p>
+
+<h2>1. 概要と目的</h2>
+<p>TurtleBot3 が LiDAR（<code>/scan</code>）の距離情報だけを使い、<b>ニューラルネットワーク（MLP）の推論結果</b>で「前進・左旋回・右旋回」を選び、<code>/cmd_vel</code> に速度指令を出して、障害物のある環境（turtlebot3_world）を衝突せずに走り続けることをタスクとしました。</p>
+<p>if文で直接ロボットを動かすのではなく、<b>ルールで書いた「熟練者（教師）」の振る舞いを、シミュレーション内で自動収集したデータから学習（模倣学習）</b>させ、走行中は学習済みモデルだけで判断させます。さらに、本当に動くかを<b>閉ループ（ロボットを実際に走らせて）で定量評価し、失敗を分析して改善するサイクル</b>を回したことが本作品の中心です。</p>
+<p>実世界では、掃除ロボットや倉庫の搬送ロボットの「ぶつからずに動き続ける」という基本機能に相当します。ルールを人手で調整し続けるかわりに、データからセンサ→行動の対応を学ぶ構成にしておくと、人間の操作ログや強化学習など、教師を別のものに差し替えて発展させることができます。</p>
+
+<h2>2. システム構成</h2>
+<pre>
+ Gazebo (turtlebot3_world)
+   │ /scan  LaserScan 360本, 約5Hz
+   ▼
+ ai_driver.py (ROS 2 ノード)
+   前処理: inf→3.5m, 5°ごと72セクタの最小距離, ÷3.5 で 0〜1 に正規化
+   MLP: 72 → 128 → 128 → 3 (ReLU, softmax)  ……  P(前進), P(左), P(右)
+   制御: argmax（最大確率の行動）  または  soft（確率で速度を重み付け平均）
+   │ /cmd_vel  Twist   前進 v=0.18m/s ／ 左右 v=0.02m/s, ω=±0.9rad/s
+   ▼
+ Gazebo 上の TurtleBot3 Burger            ai_monitor.py: LiDARと確率を可視化（制御には関与しない）
+</pre>
+
+<h2>3. AIモデル（入力・出力・学習方法）</h2>
+<table>
+<tr><th style="width:22%">項目</th><th>内容</th></tr>
+<tr><td>モデル</td><td>多層パーセプトロン（PyTorch）。入力72 → 隠れ層128×2（ReLU） → 出力3</td></tr>
+<tr><td>入力</td><td>LiDAR 360本を5°ごとの72セクタに分け、各セクタの最小距離を0〜1に正規化したベクトル</td></tr>
+<tr><td>出力</td><td>3行動（FORWARD / LEFT / RIGHT）の確率</td></tr>
+<tr><td>学習方法</td><td>模倣学習（Behavior Cloning）＝教師あり3クラス分類。クラス重み付き交差エントロピー、Adam</td></tr>
+<tr><td>学習データ</td><td>Gazebo で自動走行しながら収集した（生LiDAR 360本, 行動ラベル）3,206組。学習用は左右反転とノイズ付加で約25,000組に拡張</td></tr>
+<tr><td><b>正解ラベル</b></td><td><b>ルールベースの教師（teacher_action_v2）で自動生成</b>。前方±30°が0.55m以上かつ斜め前30〜75°が0.35m以上空いていれば前進（ただし真横75〜105°に0.22m未満の壁があればその壁から離れる方向へ旋回）。それ以外は、左右20〜100°で平均距離が大きい方へ旋回</td></tr>
+<tr><td>推論</td><td><code>/scan</code> を受信するたびに CPU で1回推論（1回あたり1ms未満）。走行中の行動は MLP の出力だけで決める</td></tr>
+</table>
+
+<div class="box"><b>AIの役割と限界</b>
+<ul>
+<li>走行中の判断は MLP のみが行います。教師ルールは、評価指標（教師との一致率）を計算するためだけに呼び出しています。</li>
+<li>正解ラベルがルール由来なので、性能の上限は基本的に教師と同程度です。「AIが教師より賢くなる」ことは主張しません。</li>
+<li>地図や自己位置推定を持たない反応型の方策なので、ゴールへの移動や探索はできません。学習した環境以外での性能は検証していません。</li>
+</ul></div>
+
+<h2>4. 開発の経緯と工夫した点</h2>
+<h3>① まず最小構成を動かす（v1）</h3>
+<p>教師v1でデータ1,176件を収集し、24セクタ（15°刻み）のMLPを学習しました（検証精度91%）。120秒の走行で衝突0回、18.95m を走行し、合格ラインの動作を確認しました。</p>
+<h3>② DAgger を試したら悪化 → ログを解析して原因の仮説を立てる</h3>
+<p>模倣学習の弱点（AIが自分で操作すると、学習データにない状態に入ってしまう＝共変量シフト）への対策として、DAggerを導入しました。AI自身が走ったときの状態に教師ラベルを付けて追加学習する手法です。ところが、検証精度は91.1%→93.9%に上がったのに、初期位置をそろえた120秒の走行で<b>衝突イベントが0回から6回に増えました</b>（各1回）。</p>
+<p><b>観測事実</b>: 6回のうち4回は左下の柱付近、2回は外周の壁付近で起きました。直前のログには、前進確率≈1.0のまま最小距離が縮んでいく場面と、その場旋回中に最小距離が縮む場面がありました。また、教師v1は前方±60°しか見ておらず、真横の障害物を判断に使っていません（コードで確認できる事実）。<br>
+<b>仮説（未検証）</b>: 教師v1が「横の障害物に近い状態での前進」を正解としていたため、DAggerで障害物近くの状態データが増えたことで、その判断が強化された。ただし、ログには最小距離の方向を記録していないためこの仮説は直接確かめられず、1回ずつの比較なので偶然の可能性も残ります。<br>
+この分析から「モデルよりも教師（ラベル）の質を疑うべき」と判断し、真横の確認を加えた教師v2を作りました。</p>
+<h3>③ 生データを保存して再ラベル付け</h3>
+<p>収集時に生LiDAR値も保存していたので、教師を改良しても<b>再走行せずに全データへラベルを付け直せます</b>（<code>train.py --relabel</code>）。</p>
+<h3>④ 特徴量の角度分解能とデータ拡張</h3>
+<p>15°刻みのセクタでは、教師の角度境界（30°・75°・105°）とセクタ境界がずれるため、5°刻み72セクタに変更しました。さらに、左右反転と距離ノイズ（σ=2cm）を加えたスキャンを教師で再ラベルして、学習データを約10倍に拡張しました（検証は拡張していない元データで行う）。</p>
+<h3>⑤ 確率を使った soft 制御と可視化</h3>
+<p>最大確率の行動を選ぶ方式（argmax）に加えて、行動確率で速度を重み付け平均する soft 制御も実装しました。AIの確信度が低い（確率が割れている）ときは自動的に減速し、動きも滑らかになります。また、AIが見ているLiDARと出力確率をリアルタイムに表示するモニターを作り、動画で「AIが何を見て、どう判断したか」がわかるようにしました。</p>
+
+<h2 class="pb">5. 評価</h2>
+<p>各試行の開始時に <code>/reset_world</code> を呼んで初期位置に戻し（12回中2回は失敗。後述の監査を参照）、各条件を複数回走らせて自動記録しました。<br>
+<span class="note">評価指標: 走行距離＝/odom の積算値。最接近距離＝走行中の LiDAR 最小値（大きいほど安全）。衝突イベント＝LiDAR最小距離が0.13m未満になった回数（接触センサではない）。教師一致率＝AIの行動が教師ルールと一致した割合。</span></p>
+<h3>一括評価（4条件 × 3回 × 90秒）</h3>
+<table>
+<tr><th>条件</th><th>試行</th><th>走行距離 [m]</th><th>最接近距離 [m] 平均（最小）</th><th>衝突イベント</th><th>教師一致率（対v2）</th></tr>
+<tr><td>教師v2（ルールで走行）</td><td class="num">3</td><td class="num">13.2 ± 0.3</td><td class="num">0.271 (0.239)</td><td class="num">0</td><td class="num">1.00</td></tr>
+<tr><td>v1 BC (argmax)</td><td class="num">3</td><td class="num">14.1 ± 0.1</td><td class="num">0.208 (0.176)</td><td class="num">0</td><td class="num">0.79 ※1</td></tr>
+<tr><td><b>v2 aug (argmax)［最終採用］</b></td><td class="num">3</td><td class="num">11.6 ± 1.0</td><td class="num">0.257 (0.235)</td><td class="num">0</td><td class="num">0.80</td></tr>
+<tr><td>v2 aug (soft)</td><td class="num">3</td><td class="num">11.3 ± 0.5</td><td class="num">0.264 (0.187)</td><td class="num">0</td><td class="num">0.83</td></tr>
+</table>
+<p class="note">※1 v1は教師v1で学習したモデルなので、教師v2との一致率は参考値です。
+※2 教師v2の2回目とsoftの1回目は <code>/reset_world</code> が効かず、別の位置から始まっています（図の白抜きの点）。初期位置が正しかった回だけで集計すると、教師v2は最接近距離の平均0.257m（最小0.239m）、softは平均0.303m（最小0.292m）です。</p>
+<img src="../figs/eval.png" alt="一括評価">
+<p>全12回とも衝突イベントは0回でした。最終採用モデルは、v1に比べて障害物との距離を大きく保ちます（最接近距離の最小値 0.176m→0.235m）。その代わり旋回が増えて、走行距離は短くなりました（14.1m→11.6m）。事後分析では、全試行で0.25m四方のマスを36〜64個訪れており、立ち往生（5秒間の移動が0.10m未満）は最大4.4秒でした。</p>
+
+<h3>実験設計の監査（自己点検）</h3>
+<table>
+<tr><th style="width:24%">項目</th><th>確認結果</th></tr>
+<tr><td>初期位置・向き</td><td>12回中10回は同じ位置から開始し、2回はリセットに失敗した。<b>コードがリセットの成否を確認していなかった</b>。向きはログに記録しておらず、検証できない</td></tr>
+<tr><td>試行の多様性</td><td>同じ初期位置で3回なので、違いはLiDARノイズ（σ=1cm）とタイミングの揺らぎだけ。初期位置への依存性は評価できておらず、統計的な有意差も言えない</td></tr>
+<tr><td>衝突の定義</td><td>LiDAR最小距離が0.13m未満になった回数。接触センサではないため、LiDARの死角での接触は検出できない</td></tr>
+<tr><td>評価コードと提出コード</td><td>評価の後に追加したのは可視化用トピックの送信だけで、行動の決定と速度指令の計算は同一。提出コードでは短い動作確認だけを行った</td></tr>
+<tr><td>改善案（未実施）</td><td>リセット後の位置確認と再試行、yawの記録、複数の初期位置×5回以上、接触センサによる判定、提出コードでの再評価</td></tr>
+</table>
+<h3>学習の検証精度</h3>
+<table>
+<tr><th>モデル</th><th>教師</th><th>特徴量</th><th>データ</th><th>検証精度</th></tr>
+<tr><td>v1</td><td>v1</td><td>24セクタ</td><td>1,176</td><td class="num">91.1%</td></tr>
+<tr><td>v1 + DAgger</td><td>v1</td><td>24セクタ</td><td>2,039</td><td class="num">93.9%</td></tr>
+<tr><td>v2 (24セクタ)</td><td>v2</td><td>24セクタ</td><td>3,206（再ラベル）</td><td class="num">87.1%</td></tr>
+<tr><td>v2 (72セクタ)</td><td>v2</td><td>72セクタ</td><td>3,206</td><td class="num">88.3%</td></tr>
+<tr><td>v2 aug</td><td>v2</td><td>72セクタ</td><td>3,206＋拡張</td><td class="num">87.2%</td></tr>
+</table>
+<p class="note">v1とv2では教師が異なるため、精度を直接比較することはできません。検証精度が最も高い「v1+DAgger」が走行では最も悪かったことから、<b>オフラインの精度だけでは走行性能を判断できず、閉ループ評価が不可欠</b>だとわかります。</p>
+<h3>走行の例（最終採用モデル、一括評価の1回目）</h3>
+<img src="../figs/run_v2_aug.png" alt="最終モデルの走行">
+<p class="note">左: 軌跡（点の色＝AIが選んだ行動）。右上: MLPが出力した各行動の確率の時間変化（最初の60秒）。右下: LiDARの最小距離。</p>
+
+<h2>6. 考察・反省点・今後の課題</h2>
+<ul>
+<li><b>模倣学習の質は教師（ラベル）の質に強く依存する</b>: DAggerの悪化は、手法そのものより教師ルールの欠陥（真横を見ていない）による可能性が高いと考えています。ただし、障害物の方向を記録していないためこれは未検証の仮説です。それでも、閉ループのログ解析がなければ、この仮説にたどり着くこともできませんでした。</li>
+<li><b>検証精度は約87%で頭打ち</b>: 誤りの多くは前進と旋回の閾値付近で起きており、ラベル自体があいまいになる状態です。走行への影響は小さいものの、今後は時系列（過去数フレーム）の入力や、旋回方向の一貫性を保つ仕組みが必要です。</li>
+<li><b>今後の発展</b>: 教師をルールから人間の操作ログに変える、強化学習で教師を超える方策を学ぶ、ゴール方向を入力に加えてナビゲーションにする、学習していない環境で汎化性能を評価する、などが考えられます。</li>
+</ul>
+
+<h2>7. 実行方法</h2>
+<pre>
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py     # TURTLEBOT3_MODEL=burger
+python3 scripts/ai_driver.py --model models/policy_v2_aug.pt --reset   # AI自律走行
+python3 scripts/ai_monitor.py                                          # AI視点モニター（任意）
+</pre>
+<p class="note">データ収集・学習・一括評価の手順は README を参照してください。</p>
+
+</body>
+</html>

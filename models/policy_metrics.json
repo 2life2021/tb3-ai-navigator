@@ -1,0 +1,30 @@
+{
+  "data": [
+    "data/teacher.npz"
+  ],
+  "samples": 1176,
+  "val_acc": 0.9106382727622986,
+  "train_acc": 0.9681190252304077,
+  "confusion_matrix": [
+    [
+      193,
+      10,
+      8
+    ],
+    [
+      2,
+      10,
+      0
+    ],
+    [
+      1,
+      0,
+      11
+    ]
+  ],
+  "actions": [
+    "FORWARD",
+    "LEFT",
+    "RIGHT"
+  ]
+}

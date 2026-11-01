@@ -1,0 +1,31 @@
+{
+  "data": [
+    "data/teacher.npz",
+    "data/dagger1.npz"
+  ],
+  "samples": 2039,
+  "val_acc": 0.9385749101638794,
+  "train_acc": 0.9871323704719543,
+  "confusion_matrix": [
+    [
+      340,
+      5,
+      10
+    ],
+    [
+      7,
+      26,
+      0
+    ],
+    [
+      3,
+      0,
+      16
+    ]
+  ],
+  "actions": [
+    "FORWARD",
+    "LEFT",
+    "RIGHT"
+  ]
+}

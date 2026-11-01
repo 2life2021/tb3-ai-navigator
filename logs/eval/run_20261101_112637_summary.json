@@ -1,0 +1,12 @@
+{
+  "tag": "v2 aug (argmax)",
+  "driver": "ai",
+  "control": "argmax",
+  "model": "models/policy_v2_aug.pt",
+  "duration_s": 90.0,
+  "steps": 433,
+  "distance_m": 10.38,
+  "min_clearance_m": 0.237,
+  "collision_events": 0,
+  "agreement_with_teacher": 0.774
+}

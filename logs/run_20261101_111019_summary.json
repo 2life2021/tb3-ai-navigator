@@ -1,0 +1,10 @@
+{
+  "driver": "ai",
+  "model": "models/policy_v2_s72.pt",
+  "duration_s": 120.1,
+  "steps": 569,
+  "distance_m": 16.78,
+  "min_clearance_m": 0.165,
+  "collision_events": 0,
+  "agreement_with_teacher": 0.822
+}

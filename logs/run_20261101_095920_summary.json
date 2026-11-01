@@ -1,0 +1,9 @@
+{
+  "model": "models/policy_dagger1.pt",
+  "duration_s": 120.1,
+  "steps": 580,
+  "distance_m": 13.01,
+  "min_clearance_m": 0.12,
+  "collision_events": 12,
+  "agreement_with_teacher": 0.607
+}

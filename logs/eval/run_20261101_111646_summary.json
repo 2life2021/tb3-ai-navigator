@@ -1,0 +1,12 @@
+{
+  "tag": "teacher_v2 (rule)",
+  "driver": "teacher",
+  "control": "argmax",
+  "model": null,
+  "duration_s": 90.2,
+  "steps": 429,
+  "distance_m": 13.6,
+  "min_clearance_m": 0.298,
+  "collision_events": 0,
+  "agreement_with_teacher": 1.0
+}

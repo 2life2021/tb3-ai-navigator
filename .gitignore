@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+logs/smoke/
+figs/test.png
+*.mp4
+*.mkv
+# 後の再学習で上書きされ policy_v2_s24.pt と同条件になったため公開しない（README「監査」参照）
+models/policy_v2.pt
+models/policy_v2_metrics.json
+# 動作確認・デモ撮影時の一時ログ
+logs/smoke/
+video/*.png
+video/*.log

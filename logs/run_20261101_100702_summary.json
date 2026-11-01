@@ -1,0 +1,10 @@
+{
+  "driver": "teacher",
+  "model": null,
+  "duration_s": 120.2,
+  "steps": 581,
+  "distance_m": 18.59,
+  "min_clearance_m": 0.198,
+  "collision_events": 0,
+  "agreement_with_teacher": 1.0
+}

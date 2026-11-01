@@ -1,0 +1,12 @@
+{
+  "tag": "v2 aug (soft)",
+  "driver": "ai",
+  "control": "soft",
+  "model": "models/policy_v2_aug.pt",
+  "duration_s": 90.1,
+  "steps": 434,
+  "distance_m": 10.86,
+  "min_clearance_m": 0.187,
+  "collision_events": 0,
+  "agreement_with_teacher": 0.79
+}
