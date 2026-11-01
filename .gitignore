@@ -11,3 +11,5 @@ models/policy_v2_metrics.json
 logs/smoke/
 video/*.png
 video/*.log
+# 開発環境専用の同期スクリプト
+sync_*.ps1

@@ -122,7 +122,7 @@ class AIDriver(Node):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="models/policy.pt")
+    ap.add_argument("--model", default="models/policy_v2_aug.pt")
     ap.add_argument("--duration", type=float, default=0.0, help="走行時間 [s]、0なら無制限")
     ap.add_argument("--log-dir", default="logs")
     ap.add_argument("--tag", default="", help="評価集計用のラベル")
