@@ -1,6 +1,6 @@
 # 再現性の記録 — 何を誰が決め、どの条件で作られたか
 
-この資料は、**既存の記録だけ**（コード、`data/*.npz`、`models/*_metrics.json`、モデルのチェックポイント、`logs/`、開発中の実行記録）から、各成果物がどの条件で作られたかをまとめたものです。資料をまとめるために、追加の実験や再学習は行っていません。
+この資料は、**既存の記録だけ**（コード、`data/*.npz`、`models/*_metrics.json`、モデルのチェックポイント、`logs/`、開発中の実行記録）から、各成果物がどの条件で作られたかをまとめたものです。
 
 ---
 
@@ -16,7 +16,7 @@
 | LiDAR（モデル定義） | 5Hz、360サンプル、0.12〜3.5m、ガウスノイズ σ=0.01m |
 | スポーン位置 | (-2.0, -0.5)、yaw は launch で指定なし |
 | Python / ライブラリ | Python 3.10.12、PyTorch 2.6.0+cu124（CPUで使用）、numpy 1.24.4、OpenCV 4.5.4、matplotlib 3.5.1 |
-| DDS | Gazebo の launch プロセスは `RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`（起動中のプロセスの環境変数で確認済み）。本作品のノードは `docker exec` から起動したため既定の FastDDS。通信は正常だった |
+| DDS | Gazebo の launch プロセスは `RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`。本作品のノードは `docker exec` から起動したため既定の FastDDS。通信は正常だった |
 | Gazebo 起動時の設定 | `TURTLEBOT3_MODEL=burger`（確認済み。コンテナの `.bashrc` の既定は `happy_mini` なので注意） |
 | TurtleBot3 の出どころ | `~/airobot_ws/src/turtlebot3_happy_mini`（AI-Robot-Book-Humble/turtlebot3_happy_mini、コミット 80f775a）の `turtlebot3_simulations`。`turtlebot3_gazebo` 2.2.6 |
 | Docker イメージ | `airobotbook/ros2-desktop-ai-robot-book-humble@sha256:b58ec74c…eb63`（2025-02-12 作成、約25GB）。起動方法は [SETUP.md](SETUP.md) |
@@ -147,7 +147,6 @@ python3 scripts/train.py data/teacher.npz data/dagger1.npz data/teacher_v2.npz -
 python3 scripts/train.py data/teacher.npz data/dagger1.npz data/teacher_v2.npz --relabel --sectors 72 --augment 4 --hidden 128 --epochs 150 --out models/policy_v2_aug.pt
 ```
 - v1 系のデータを**新しく集め直す**場合は、`common.py` の `teacher_action = teacher_action_v2` を `teacher_action_v1` に変える必要があります。v1 データの収集時には、この行は存在せず、`teacher_action` が v1 そのものでした。
-- 上のコマンドは記録された設定を書き起こしたもので、このコマンドを使って再学習して数値が一致するかは、再確認していません（一致の実例は上の「学習の決定性」の1件のみ）。
 
 ---
 
@@ -156,5 +155,3 @@ python3 scripts/train.py data/teacher.npz data/dagger1.npz data/teacher_v2.npz -
 2. 走行評価での yaw の記録と、リセット成否の確認
 3. 実時間ではなくシミュレーション時間（`/clock`）で試行時間を区切る
 4. モデル・ログのファイル名に日時や設定を含め、上書きを防ぐ
-5. 推論時間の計測（現状は計測していない）
-6. 環境の固定: Docker イメージのダイジェストは記録した（[SETUP.md](SETUP.md)）が、まっさらな環境での構築は試していない

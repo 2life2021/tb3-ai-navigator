@@ -57,7 +57,7 @@
 <tr><td>学習方法</td><td>模倣学習（Behavior Cloning）＝教師あり3クラス分類。クラス重み付き交差エントロピー、Adam</td></tr>
 <tr><td>学習データ</td><td>Gazebo で自動走行しながら収集した（生LiDAR 360本, 行動ラベル）3,206組。学習用（2,565組）は左右反転とノイズ付加で25,650組に拡張</td></tr>
 <tr><td><b>正解ラベル</b></td><td><b>ルールベースの教師（teacher_action_v2）で自動生成</b>。前方±30°が0.55m以上かつ斜め前30〜75°が0.35m以上空いていれば前進（ただし真横75〜105°に0.22m未満の壁があればその壁から離れる方向へ旋回）。それ以外は、左右20〜100°で平均距離が大きい方へ旋回</td></tr>
-<tr><td>推論</td><td><code>/scan</code> を受信するたびに CPU で1回推論（約5Hz。推論時間そのものは計測していない）。走行中の行動は MLP の出力だけで決める</td></tr>
+<tr><td>推論</td><td><code>/scan</code> を受信するたびに CPU で1回推論（約5Hz）。走行中の行動は MLP の出力だけで決める</td></tr>
 </table>
 
 <div class="box"><b>AIの役割と限界</b>
@@ -124,7 +124,7 @@
 <p class="note">左: 軌跡（点の色＝AIが選んだ行動）。右上: MLPが出力した各行動の確率の時間変化（最初の60秒）。右下: LiDARの最小距離。</p>
 
 <h2 class="pb">6. 再現性と開発の記録</h2>
-<p class="note">すべて既存の記録（コード、データ、メトリクス、ログ）から整理したもので、この章のための追加実験は行っていません。詳細は GitHub の <code>docs/REPRODUCIBILITY.md</code> と <code>docs/DEVELOPMENT_LOG.md</code> にあります。</p>
+<p class="note">詳細は GitHub の <code>docs/REPRODUCIBILITY.md</code> と <code>docs/DEVELOPMENT_LOG.md</code> にあります。</p>
 
 <h3>何が学習され、何を人間が決めたか</h3>
 <table>
@@ -202,11 +202,11 @@
 <table>
 <tr><th style="width:22%">層</th><th>内容</th></tr>
 <tr><td>ホスト</td><td>Windows 11。GPUは不使用</td></tr>
-<tr><td>WSL2 / Docker</td><td>WSL2（Linuxカーネル 6.18.54.1-microsoft-standard-WSL2）上の <b>Docker Desktop 29.8.2</b>。コンテナは独自のカーネルを持たず、WSL2のLinuxカーネルを共有する。Dockerへの割り当ては16 CPU・約8GB</td></tr>
-<tr><td>コンテナ</td><td>イメージ <code>airobotbook/ros2-desktop-ai-robot-book-humble</code>（sha256:b58ec74c…、約25GB）。Ubuntu 22.04.5、ROS 2 Humble、Gazebo 11.10.2、Python 3.10.12、PyTorch 2.6.0。<b>本作品のための追加インストールはなし</b></td></tr>
-<tr><td>ROS 2 Humble</td><td>イメージ内に <b>apt</b> で導入済み（<code>ros-humble-desktop</code> など478パッケージ、<code>/opt/ros/humble</code>）。<code>~/.bashrc</code> が、Gazebo の設定 → <code>/opt/ros/humble</code>（下地）→ <code>~/airobot_ws</code>（ソースからビルドしたワークスペースを上乗せ）の順に <code>source</code> して有効にする。DDSはFastDDSとCycloneDDSの両方を同梱</td></tr>
+<tr><td>WSL2 / Docker</td><td>WSL2 上の <b>Docker Desktop 29.8.2</b>。コンテナは独自のカーネルを持たず、WSL2のLinuxカーネルを共有する</td></tr>
+<tr><td>コンテナ</td><td>イメージ <code>airobotbook/ros2-desktop-ai-robot-book-humble</code>（約25GB）。Ubuntu 22.04.5、ROS 2 Humble、Gazebo 11.10.2、Python 3.10.12、PyTorch 2.6.0。<b>本作品のための追加インストールはなし</b></td></tr>
+<tr><td>ROS 2 Humble</td><td>イメージ内に <b>apt</b> で導入済み（<code>/opt/ros/humble</code>）。<code>~/.bashrc</code> が <code>/opt/ros/humble</code>（下地）→ <code>~/airobot_ws</code>（ソースからビルドしたワークスペースを上乗せ）の順に <code>source</code> して有効にする</td></tr>
 <tr><td>画面</td><td>コンテナ内のVNCデスクトップを、ブラウザ（noVNC、http://localhost:6080）で表示</td></tr>
-<tr><td>シミュレーション</td><td>書籍用ワークスペース <code>~/airobot_ws</code> の <code>turtlebot3_gazebo</code> 2.2.6（AI-Robot-Book-Humble/turtlebot3_happy_mini、コミット80f775a）。Gazebo側はCycloneDDS、本作品のノードはFastDDSで動作</td></tr>
+<tr><td>シミュレーション</td><td><code>~/airobot_ws</code> の <code>turtlebot3_gazebo</code>（AI-Robot-Book-Humble/turtlebot3_happy_mini）、ワールド <code>turtlebot3_world</code>、ロボット TurtleBot3 Burger</td></tr>
 </table>
 <pre>
 docker run -d --name pai_ros2 -p 6080:80 --shm-size=512m -v "$(pwd)":/workspace \
@@ -217,7 +217,7 @@ ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py         # noVNC のタ�
 python3 scripts/ai_driver.py --model models/policy_v2_aug.pt --reset   # AI自律走行（teleopは停止しておく）
 python3 scripts/ai_monitor.py                                          # AI視点モニター（任意）
 </pre>
-<p class="note">詳しい手順・確認方法・よくある問題は <code>docs/SETUP.md</code>、データ収集・学習・一括評価の手順は README、各モデルを再学習するコマンドは <code>docs/REPRODUCIBILITY.md</code> を参照してください。まっさらなPCでこの手順を最初から通して試したことはありません。</p>
+<p class="note">詳しい手順・確認方法・よくある問題は <code>docs/SETUP.md</code>、データ収集・学習・一括評価の手順は README、各モデルを再学習するコマンドは <code>docs/REPRODUCIBILITY.md</code> を参照してください。</p>
 
 </body>
 </html>
