@@ -22,6 +22,8 @@
   .pb { page-break-before: always; }
   ul { margin: 4px 0; padding-left: 1.4em; }
   .box, tr, .lim { break-inside: avoid; }
+  h3 { break-after: avoid; }
+  td.stage { vertical-align: middle; font-weight: bold; background: #fafaf8; }
 </style>
 </head>
 <body>
@@ -133,18 +135,34 @@
 <h2 class="pb">6. 再現性と開発の記録</h2>
 <p class="note">詳細は GitHub の <code>docs/REPRODUCIBILITY.md</code> と <code>docs/DEVELOPMENT_LOG.md</code> にあります。</p>
 
-<h3>何が学習され、何を人間が決めたか</h3>
+<h3>何をAIが学習し、何を人間が決めたか</h3>
+<p>本作品で<b>AIが学習によって決めたのは、MLPの重みとバイアスだけ</b>です。それ以外の設定は、すべて人間が決めました。</p>
+
+<p><b>AIが学習で決めたもの</b></p>
 <table>
-<tr><th style="width:22%">区分</th><th>値</th></tr>
-<tr><td><b>学習される値</b></td><td>MLPの重みとバイアス26,243個<b>のみ</b></td></tr>
-<tr><td>教師の閾値</td><td>v1: 前方±25°&gt;0.55m、斜め25〜60°&gt;0.30m ／ v2: 前方±30°&gt;0.55m、斜め30〜75°&gt;0.35m、真横75〜105°&lt;0.22mなら反対側へ旋回</td></tr>
-<tr><td>特徴量</td><td>セクタ数はv1系が24、最終モデルが72。各セクタの最小値を3.5で割る</td></tr>
-<tr><td>行動の速度</td><td>前進 v=0.18m/s ／ 左右 v=0.02m/s, ω=±0.9rad/s。全期間で変更なし</td></tr>
-<tr><td>データ収集</td><td>ランダム行動の確率ε、DAggerで教師が操作する確率β、収集時間、リセット距離0.13m</td></tr>
-<tr><td>学習</td><td>隠れ層 64 / 128、エポック 300 / 600 / 150、バッチ128、Adam lr=1e-3、weight_decay=1e-4、検証20%、シード0、拡張 0 / 4</td></tr>
-<tr><td>推論・評価</td><td>argmax / soft、scan受信ごとに推論、衝突判定 0.13m、試行 90 / 120 / 150秒</td></tr>
+<tr><th style="width:22%">決めたもの</th><th style="width:38%">役割</th><th>決まり方</th></tr>
+<tr><td><b>MLPの重みとバイアス</b><br>26,243個</td><td>LiDARの特徴量から、前進・左旋回・右旋回それぞれの確率を計算する式の係数</td><td>教師ラベルとの誤差が小さくなるように、誤差逆伝播とAdamで自動的に調整される</td></tr>
 </table>
 
+<p><b>人間が決めたもの</b>：開発の流れの順</p>
+<table>
+<tr><th style="width:17%">段階</th><th style="width:25%">決めたもの</th><th style="width:28%">値</th><th>何に影響するか</th></tr>
+<tr><td class="stage">① タスクの設計</td><td>行動の種類と速度</td><td>前進 0.18m/s ／ 左右旋回 0.9rad/s</td><td>ロボットが取れる動きそのもの</td></tr>
+<tr><td class="stage">② 正解の定義</td><td>教師ルールの閾値</td><td>v2: 前方±30°が0.55m以上、斜め前30〜75°が0.35m以上なら前進。真横75〜105°が0.22m未満なら反対側へ旋回</td><td><b>AIが「正しい」と学ぶ行動の基準</b>。AIの振る舞いを最も強く左右する</td></tr>
+<tr><td class="stage">③ 入力の作り方</td><td>LiDARのまとめ方</td><td>5°ごとの72区間の最小距離を、3.5で割って0〜1にそろえる</td><td>AIが周囲をどの細かさで見るか</td></tr>
+<tr><td class="stage" rowspan="3">④ データの集め方</td><td>ランダム行動の確率 ε</td><td>0.10、DAggerの回のみ0.05</td><td>危ない状態のデータがどれだけ含まれるか</td></tr>
+<tr><td>DAggerで教師が操作する確率 β</td><td>0.3</td><td>AI自身が運転した状態をどれだけ集めるか</td></tr>
+<tr><td>収集時間</td><td>240秒・180秒・240秒の3回、計3,206件</td><td>データの量</td></tr>
+<tr><td class="stage" rowspan="4">⑤ 学習の設定</td><td>モデルの大きさ</td><td>隠れ層 128 × 2層</td><td>表現できる判断の複雑さ</td></tr>
+<tr><td>学習の回数・進め方</td><td>エポック150、バッチ128、Adam 学習率0.001</td><td>学習がどこまで、どれだけ速く進むか</td></tr>
+<tr><td>データ拡張</td><td>左右反転＋ノイズで学習データを10倍</td><td>未知の状態への強さ</td></tr>
+<tr><td>検証データの割合と乱数シード</td><td>20%・シード0</td><td>精度の測り方と、学習の再現性</td></tr>
+<tr><td class="stage" rowspan="2">⑥ 評価のルール</td><td>衝突イベントの基準</td><td>LiDAR最小距離 0.13m未満</td><td>何を「衝突」と数えるか</td></tr>
+<tr><td>試行時間と回数</td><td>90秒 × 3回</td><td>評価の信頼性</td></tr>
+</table>
+<p class="note">表の値は最終採用モデルのものです。各モデルの値の違いは GitHub の <code>docs/REPRODUCIBILITY.md</code> にまとめています。</p>
+
+<div style="break-inside: avoid;">
 <h3>データ収集時の教師の条件</h3>
 <table>
 <tr><th>データ</th><th>運転していたもの</th><th>保存ラベル</th><th>ε / β</th><th>時間</th><th>件数</th><th>前/左/右</th></tr>
@@ -152,6 +170,7 @@
 <tr><td>dagger1</td><td>v1モデル。確率0.3で教師v1</td><td>v1</td><td>0.05 / 0.3</td><td class="num">180s</td><td class="num">863</td><td>721/84/58</td></tr>
 <tr><td>teacher_v2</td><td>教師v2</td><td>v2</td><td>0.10 / –</td><td class="num">240s</td><td class="num">1,167</td><td>717/233/217</td></tr>
 </table>
+</div>
 <p>v2系のモデルは、3つのデータすべてを保存済みの生LiDARから<b>教師v2で再ラベル</b>して学習しました。つまり、<b>最終モデルの学習データには、DAggerで集めた状態863件が教師v2のラベルで含まれています</b>。悪化したのは「v1のラベルのまま追加学習した」条件であり、DAggerの状態データが最終モデルにどれだけ寄与したかは、切り分けて評価していません。</p>
 
 <h3>推論・制御の変更で起きた問題と修正</h3>
@@ -186,7 +205,7 @@
 <h3>7.2 ROS 2の通信構造</h3>
 <p>ROS 2では、<b>ノードが処理を担当する単位であり、トピックはノード間で情報を交換するための通信経路</b>であることを理解しました。例えば、LiDARの観測情報は <code>/scan</code>、ロボットへの速度指令は <code>/cmd_vel</code> というトピックを通して送受信されます。</p>
 <p>また、Pythonの <code>self.on_scan</code> と <code>self.on_scan()</code> の違いも重要だと学びました。前者はメソッドそのものを参照し、後者はメソッドを呼び出します。この違いから、センサー情報が届いた際に、事前に登録した処理が実行される<b>コールバック</b>の仕組みを理解できました。</p>
-<p>さらに、<code>/odom</code> はロボットの位置や姿勢に関する推定情報を提供しますが、その値には誤差が含まれる可能性があり、正確な自己位置を保証するものではないことを学びました。</p>
+<p>さらに、<code>/odom</code> はロボットの位置や姿勢に関する推定情報を提供しますが、その値には誤差が含まれる可能性があり、正確な自己位置を保証するものではないことを学びました。オドメトリは車輪の回転量などから求めた移動量を積み重ねて位置を推定するため、1回ごとのわずかな誤差が時間とともに<b>少しずつ蓄積していき</b>、走行が長くなるほど実際の位置とのずれが大きくなります。これが、オドメトリの誤差が問題になる理由だと理解しました。</p>
 <p>特に、<b>オドメトリによる位置推定と、LiDARによる障害物の認識は異なる機能</b>であると区別することが重要だと理解しました。</p>
 
 <h3>7.3 ロボットの認識と制御</h3>
