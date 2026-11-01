@@ -8,17 +8,72 @@
 
 ```
 Windows 11（ホスト）
- └─ Docker（Linux コンテナを実行。開発時の Docker Engine 29.8.2）
-     └─ コンテナ pai_ros2（イメージ airobotbook/ros2-desktop-ai-robot-book-humble）
-         ├─ Ubuntu 22.04.5 / ROS 2 Humble / Gazebo 11.10.2 / Python 3.10.12
-         ├─ PyTorch 2.6.0・numpy・OpenCV・matplotlib（イメージに同梱）
-         ├─ VNC デスクトップ（MATE）→ ブラウザから noVNC で表示（http://localhost:6080）
-         ├─ ~/airobot_ws : TurtleBot3 のシミュレーションパッケージ（ソースからビルド済み）
-         └─ /workspace   : ホストのディレクトリをマウント（本リポジトリを置く場所）
+ └─ WSL2（Linux カーネル 6.18.54.1-microsoft-standard-WSL2）
+     └─ Docker Desktop 29.8.2（WSL2 バックエンド）
+         └─ コンテナ pai_ros2（イメージ airobotbook/ros2-desktop-ai-robot-book-humble）
+             ├─ Ubuntu 22.04.5 / ROS 2 Humble / Gazebo 11.10.2 / Python 3.10.12
+             ├─ PyTorch 2.6.0・numpy・OpenCV・matplotlib（イメージに同梱）
+             ├─ VNC デスクトップ（MATE）→ ブラウザから noVNC で表示（http://localhost:6080）
+             ├─ ~/airobot_ws : TurtleBot3 のシミュレーションパッケージ（ソースからビルド済み）
+             └─ /workspace   : ホストのディレクトリをマウント（本リポジトリを置く場所）
 ```
 
 - GPU は使いません（PyTorch は CPU で動かします）。
 - 本作品のために `pip install` や `apt install` をしたものは**ありません**。必要なものはすべてイメージに入っています。
+
+---
+
+## 1.5 基盤ソフトウェア（Docker・ROS 2・Gazebo）の役割と導入状況
+
+### 各層の役割と、開発環境での入り方
+| 層 | 役割 | 開発環境での入り方（確認済み） |
+|---|---|---|
+| WSL2 | Windows 上で本物の Linux カーネルを動かす仮想化の仕組み | Windows 11 の WSL2。ディストリビューションは `Ubuntu` と `docker-desktop`（どちらも WSL バージョン 2） |
+| Docker | アプリと実行環境をまとめた「コンテナ」を動かす。コンテナは自分のカーネルを持たず、ホスト側（ここでは WSL2）の Linux カーネルを共有する | **Docker Desktop** 29.8.2（WSL2 バックエンド）。カーネル `6.18.54.1-microsoft-standard-WSL2`、Docker に割り当てられた資源は 16 CPU・約 8 GB |
+| Docker イメージ | コンテナのひな形。OS・ROS 2・Gazebo・ライブラリ・デスクトップ環境が入った状態で配布される | `airobotbook/ros2-desktop-ai-robot-book-humble`（Docker Hub の `airobotbook` が公開しているイメージ。中の TurtleBot3 のソースは GitHub の AI-Robot-Book-Humble のもの）。本作品では作り直していない |
+| ROS 2 Humble | ロボットのプログラム（ノード）どうしをつなぐ通信ミドルウェアと、その周辺ツール | イメージ内に **apt** で導入済み（`ros-humble-desktop` 0.10.0 など、ros-humble のパッケージ 478 個。`/opt/ros/humble`） |
+| DDS（RMW） | ROS 2 の通信を実際に運ぶ層。実装を選べる | FastDDS（既定）と CycloneDDS の両方が入っている。`.bashrc` で CycloneDDS を指定 |
+| Gazebo 11 | ロボットとセンサの物理シミュレータ。`gazebo_ros` で ROS 2 とつながる | Ubuntu の apt 版 `gazebo` 11.10.2 と `ros-humble-gazebo-ros-pkgs` 3.7.0 |
+| TurtleBot3 のパッケージ | ロボットのモデル・ワールド・launch ファイル | 書籍用ワークスペース `~/airobot_ws` で、ソースからビルド済み（colcon） |
+| PyTorch など | 機械学習 | ubuntu ユーザーの `~/.local` に pip で導入済み（torch 2.6.0） |
+
+### ROS 2 の有効化のしくみ（このコンテナの `~/.bashrc`）
+ROS 2 のコマンドやパッケージは、`setup.bash` を `source` して初めて使えるようになります。このコンテナでは、`~/.bashrc` が次の順に読み込みます（119〜125行目）。
+
+```bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp   # DDS 実装の指定
+source /usr/share/gazebo/setup.sh              # Gazebo の環境変数
+export TURTLEBOT3_MODEL=happy_mini             # ← 本作品では burger に上書きして使う
+export WORKSPACE_ROOT=~/airobot_ws
+source /opt/ros/humble/setup.bash              # 下地（underlay）: apt で入れた ROS 2 本体
+source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
+source ~/airobot_ws/install/setup.bash         # 上乗せ（overlay）: ソースからビルドしたパッケージ
+```
+
+- **underlay と overlay**: `/opt/ros/humble` が土台で、その上に `~/airobot_ws`（`colcon build` でビルドしたワークスペース）を重ねます。同じ名前のパッケージがあると、上に重ねた方が優先されます。`turtlebot3_gazebo` が apt 版ではなく書籍版になっているのは、このためです。
+- **`.bashrc` が読まれない場合に注意**: `docker exec pai_ros2 bash -lc "..."` のような非対話シェルでは `.bashrc` が読まれません（開発時に `RMW_IMPLEMENTATION` が空だったことで確認）。そのため、開発時は `source /opt/ros/humble/setup.bash` を明示して本作品のノードを起動しました。本作品のノードは標準メッセージしか使わないので、underlay だけで動きます。
+- **PyTorch が見つかる理由**: torch は `/home/ubuntu/.local` にあります。`docker exec` の既定のユーザーは root ですが、このコンテナでは `HOME=/home/ubuntu` が設定されているため、root でも import できました。`HOME` が異なる環境では、`ModuleNotFoundError: torch` になる可能性があります。
+
+### Docker の導入（Windows の場合の一般的な手順）
+本作品の開発を始めた時点で、Docker Desktop はすでに導入済みでした。そのときの手順は記録していないので、以下は一般的な流れです（本作品では検証していません）。
+
+1. Windows の機能で WSL2 を有効にする（PowerShell を管理者で開き、`wsl --install`）
+2. Docker Desktop for Windows をインストールし、設定で「Use the WSL 2 based engine」を有効にする
+3. 動作確認: `docker run hello-world`
+4. イメージを取得する: `docker pull airobotbook/ros2-desktop-ai-robot-book-humble:latest`（約 25 GB）
+5. 3章の `docker run` でコンテナを作る
+
+### Docker を使わない場合（参考・未検証）
+Ubuntu 22.04 に直接入れる場合、主に次のものが必要です。**この構成では動作を確認していません**。また、TurtleBot3 は apt 版になるため、開発時の書籍版とはワールドやモデルの細部が異なる可能性があります。
+
+```bash
+# ROS 2 Humble（公式手順でリポジトリを追加したあと）
+sudo apt install ros-humble-desktop ros-humble-gazebo-ros-pkgs ros-humble-turtlebot3-gazebo
+# Python ライブラリ（開発時のバージョン: torch 2.6.0 / numpy 1.24.4 / opencv 4.5.4 / matplotlib 3.5.1）
+pip3 install torch numpy opencv-python matplotlib
+source /opt/ros/humble/setup.bash
+export TURTLEBOT3_MODEL=burger
+```
 
 ---
 

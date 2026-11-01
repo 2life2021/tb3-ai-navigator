@@ -198,11 +198,13 @@
 <p>最大の学びは、ロボットの自律走行を単一のAIの働きとしてではなく、<b>開発環境・通信・センシング・制御・機械学習が階層的に連携するシステム</b>として理解できたことです。特に、<b>何を入力し、何を正解として学習し、どのような指標で評価しているのかを正確に把握すること</b>が、機械学習システムの仕組みと限界を理解するうえで不可欠だと実感しました。</p>
 <p>今後は、分類精度の向上そのものではなく、<b>安全な障害物回避という本来の目的に対して、機械学習がどの程度有効なのか</b>を検証したいと考えています。教師ルールとMLPの走行性能を同一条件で比較し、未知の障害物配置での汎化性能や、モデルの複雑さと制御性能の関係を調べます。機械学習を導入すること自体を目的とするのではなく、<b>どのような条件で、なぜ機械学習が有効になるのか</b>を明らかにすることを今後の課題とします。</p>
 
-<h2>8. 環境構築と実行方法</h2>
+<h2 class="pb">8. 環境構築と実行方法</h2>
 <table>
 <tr><th style="width:22%">層</th><th>内容</th></tr>
-<tr><td>ホスト</td><td>Windows 11 + Docker（Linuxコンテナ）。GPUは不使用</td></tr>
+<tr><td>ホスト</td><td>Windows 11。GPUは不使用</td></tr>
+<tr><td>WSL2 / Docker</td><td>WSL2（Linuxカーネル 6.18.54.1-microsoft-standard-WSL2）上の <b>Docker Desktop 29.8.2</b>。コンテナは独自のカーネルを持たず、WSL2のLinuxカーネルを共有する。Dockerへの割り当ては16 CPU・約8GB</td></tr>
 <tr><td>コンテナ</td><td>イメージ <code>airobotbook/ros2-desktop-ai-robot-book-humble</code>（sha256:b58ec74c…、約25GB）。Ubuntu 22.04.5、ROS 2 Humble、Gazebo 11.10.2、Python 3.10.12、PyTorch 2.6.0。<b>本作品のための追加インストールはなし</b></td></tr>
+<tr><td>ROS 2 Humble</td><td>イメージ内に <b>apt</b> で導入済み（<code>ros-humble-desktop</code> など478パッケージ、<code>/opt/ros/humble</code>）。<code>~/.bashrc</code> が、Gazebo の設定 → <code>/opt/ros/humble</code>（下地）→ <code>~/airobot_ws</code>（ソースからビルドしたワークスペースを上乗せ）の順に <code>source</code> して有効にする。DDSはFastDDSとCycloneDDSの両方を同梱</td></tr>
 <tr><td>画面</td><td>コンテナ内のVNCデスクトップを、ブラウザ（noVNC、http://localhost:6080）で表示</td></tr>
 <tr><td>シミュレーション</td><td>書籍用ワークスペース <code>~/airobot_ws</code> の <code>turtlebot3_gazebo</code> 2.2.6（AI-Robot-Book-Humble/turtlebot3_happy_mini、コミット80f775a）。Gazebo側はCycloneDDS、本作品のノードはFastDDSで動作</td></tr>
 </table>
