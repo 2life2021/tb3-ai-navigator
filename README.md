@@ -7,6 +7,7 @@ ROS 2 Humble / Gazebo Classic 11 / TurtleBot3 Burger 上で、**LiDAR (`/scan`) 
 - 最終採用モデル: `models/policy_v2_aug.pt`（72セクタ入力、データ拡張あり）、制御方式は argmax（既定）
 - 初心者向けの詳しい技術解説: [`docs/TECH_GUIDE.md`](docs/TECH_GUIDE.md)
 - 制作を通して得た学びと今後の課題: [`docs/REFLECTION.md`](docs/REFLECTION.md)
+- 環境構築（Docker コンテナの起動から AI 走行まで）: [`docs/SETUP.md`](docs/SETUP.md)
 - 再現性の記録（全ハイパーパラメータ、データ収集時の教師の条件、モデルの来歴）: [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
 - 開発記録（問題 → 原因 → 修正 → 確認）: [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md)
 
@@ -72,7 +73,7 @@ tb3_ai_nav/
 ├── models/               学習済みモデル (.pt) と学習指標 (_metrics.json)
 ├── logs/                 走行ログ (.csv) と評価サマリ (_summary.json)。logs/eval が一括評価
 ├── figs/                 図
-├── docs/                TECH_GUIDE（技術解説）・REPRODUCIBILITY（再現性）・DEVELOPMENT_LOG（開発記録）・REFLECTION（学び）
+├── docs/                SETUP（環境構築）・TECH_GUIDE（技術解説）・REPRODUCIBILITY（再現性）・DEVELOPMENT_LOG（開発記録）・REFLECTION（学び）
 ├── report/report.html    提出用レポートの元データ
 └── sync_*.ps1            開発用: Windows⇔Dockerコンテナの同期
 ```
@@ -80,6 +81,7 @@ tb3_ai_nav/
 ## 実行手順
 
 前提: Ubuntu 22.04、ROS 2 Humble、Gazebo 11、`turtlebot3_gazebo` パッケージ、Python 3.10、PyTorch（開発環境は 2.6.0）、numpy、OpenCV（モニター用）、matplotlib（図の作成用）。
+開発には、これらがすべて入った Docker イメージ `airobotbook/ros2-desktop-ai-robot-book-humble` を使いました。**コンテナの起動から走行までの手順は [`docs/SETUP.md`](docs/SETUP.md) にあります**（追加のインストールは不要。`TURTLEBOT3_MODEL=burger` の指定が必須）。
 
 ```bash
 # 1. シミュレーション起動（別ターミナル）

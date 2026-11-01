@@ -12,11 +12,14 @@
 | OS（コンテナ） | Ubuntu 22.04.5 LTS |
 | ROS 2 | Humble（rclpy 3.3.15、gazebo_ros 3.7.0） |
 | シミュレータ | Gazebo 11.10.2、ワールド `turtlebot3_world`、ロボット TurtleBot3 Burger |
-| TurtleBot3 パッケージ | apt ではなく、コンテナ内の `~/airobot_ws` でソースからビルドされたもの（`turtlebot3_gazebo`） |
+| TurtleBot3 パッケージ | apt ではなく、コンテナ内の `~/airobot_ws` でソースからビルドされたもの（下の「TurtleBot3 の出どころ」を参照） |
 | LiDAR（モデル定義） | 5Hz、360サンプル、0.12〜3.5m、ガウスノイズ σ=0.01m |
 | スポーン位置 | (-2.0, -0.5)、yaw は launch で指定なし |
 | Python / ライブラリ | Python 3.10.12、PyTorch 2.6.0+cu124（CPUで使用）、numpy 1.24.4、OpenCV 4.5.4、matplotlib 3.5.1 |
-| DDS | 対話シェルの `.bashrc` では `RMW_IMPLEMENTATION=rmw_cyclonedds_cpp` が指定されており、そこから起動した Gazebo は CycloneDDS で動いていたと考えられる（プロセスの環境変数は権限の都合で確認できなかった）。本作品のノードは `docker exec` から起動したため既定の FastDDS。通信は正常だった |
+| DDS | Gazebo の launch プロセスは `RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`（起動中のプロセスの環境変数で確認済み）。本作品のノードは `docker exec` から起動したため既定の FastDDS。通信は正常だった |
+| Gazebo 起動時の設定 | `TURTLEBOT3_MODEL=burger`（確認済み。コンテナの `.bashrc` の既定は `happy_mini` なので注意） |
+| TurtleBot3 の出どころ | `~/airobot_ws/src/turtlebot3_happy_mini`（AI-Robot-Book-Humble/turtlebot3_happy_mini、コミット 80f775a）の `turtlebot3_simulations`。`turtlebot3_gazebo` 2.2.6 |
+| Docker イメージ | `airobotbook/ros2-desktop-ai-robot-book-humble@sha256:b58ec74c…eb63`（2025-02-12 作成、約25GB）。起動方法は [SETUP.md](SETUP.md) |
 
 ---
 
@@ -154,4 +157,4 @@ python3 scripts/train.py data/teacher.npz data/dagger1.npz data/teacher_v2.npz -
 3. 実時間ではなくシミュレーション時間（`/clock`）で試行時間を区切る
 4. モデル・ログのファイル名に日時や設定を含め、上書きを防ぐ
 5. 推論時間の計測（現状は計測していない）
-6. `requirements.txt` や Docker イメージのタグなど、環境の固定
+6. 環境の固定: Docker イメージのダイジェストは記録した（[SETUP.md](SETUP.md)）が、まっさらな環境での構築は試していない
