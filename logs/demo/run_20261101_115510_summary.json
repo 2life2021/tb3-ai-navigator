@@ -1,0 +1,12 @@
+{
+  "tag": "",
+  "driver": "ai",
+  "control": "argmax",
+  "model": "models/policy_v2_aug.pt",
+  "duration_s": 150.2,
+  "steps": 706,
+  "distance_m": 17.77,
+  "min_clearance_m": 0.187,
+  "collision_events": 0,
+  "agreement_with_teacher": 0.773
+}
